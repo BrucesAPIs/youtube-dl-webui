@@ -224,35 +224,42 @@ function cleanupDownloadFolders() {
                     method: 'get',
                     path: '/download/:uid',
                     async handler(req, res) {
-                        const uid = req.params.uid as string
-                        const download = downloads.find(d => d.uid === uid)
+                        try {
+                            const uid = req.params.uid as string
+                            const download = downloads.find(d => d.uid === uid)
 
-                        if (!download) {
-                            return res.status(404).json({
-                                error: 'Download not found',
-                                message: `No download found with uid: ${uid}`
-                            })
+                            if (!download) {
+                                res.status(404).send('Download not found')
+                                return
+                            }
+
+
+
+                            // Check if the file exists
+                            const fullPath = download.workdir + '/' + download.targetFile!
+                            const stats = fs.statSync(fullPath)
+
+                            download.autoBrowserDownload = false
+                            download.status = 'BROWSER-DOWNLOAD'
+
+                            res.header('Content-Disposition', 'attachment; filename="' + encodeURIComponent(download.targetFile!) + '"')
+                            res.header('Content-Length', stats.size.toString())
+
+                            const readStream = fs.createReadStream(fullPath);
+                            readStream.pipe(res)
+
+                            await once(readStream, 'close')
+
+                            fsExtra.removeSync(download.workdir)
+                            download.status = 'DONE'
+                            download.doneOrCanceledAt = new Date
+                        } catch (error: any) {
+                            logger.error(`Failed to process download for ${req.params.uid}:`, error.message)
+                            // Only send error response if headers haven't been sent
+                            if (!res.headersSent) {
+                                res.status(500).send('Failed to process download request')
+                            }
                         }
-
-                        download.autoBrowserDownload = false
-
-                        download.status = 'BROWSER-DOWNLOAD'
-
-                        res.header('Content-Disposition', 'attachment; filename="' + encodeURIComponent(download.targetFile!) + '"')
-                        const fullPath = download.workdir + '/' + download.targetFile!
-                        const stats = fs.statSync(fullPath)
-                        res.header('Content-Length', stats.size.toString())
-
-                        const readStream = fs.createReadStream(fullPath);
-                        readStream.pipe(res)
-
-                        await once(readStream, 'close')
-
-                        fsExtra.removeSync(download.workdir)
-                        download.status = 'DONE'
-                        download.doneOrCanceledAt = new Date
-
-                        res.end()
                     }
                 },
                 {
