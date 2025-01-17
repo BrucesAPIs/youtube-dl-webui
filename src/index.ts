@@ -69,6 +69,15 @@ function cleanupDownloadFolders() {
         port: config.port || 80,
         webUiFilesPath: __dirname + '/..',
         api: {
+            middleware: [(req, res, next) => {
+                // Allow only localhost access
+                const ip = req.ip || req.connection.remoteAddress
+                if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) {
+                    res.status(403).send('Access denied: Only localhost connections are allowed')
+                    return
+                }
+                next()
+            }],
             routes: [
                 {
                     method: 'post',
