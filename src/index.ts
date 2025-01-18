@@ -27,12 +27,11 @@ interface Download {
     youtubeJob: Job
     workdir: string,
     targetFile?: string
-    autoBrowserDownload: boolean
     doneOrCanceledAt?: Date
     videoQuality: string
 }
 
-type DownloadRequest = Pick<Download, 'urls' | 'onlyAudio' | 'ignorePlaylists' | 'autoBrowserDownload' | 'videoQuality'>
+type DownloadRequest = Pick<Download, 'urls' | 'onlyAudio' | 'ignorePlaylists' | 'videoQuality'>
 
 const downloads: Download[] = []
 const downloadManager = new JobsRunner({ logger })
@@ -69,15 +68,6 @@ function cleanupDownloadFolders() {
         port: config.port || 80,
         webUiFilesPath: __dirname + '/..',
         api: {
-            middleware: [(req, res, next) => {
-                // Allow only localhost access
-                const ip = req.ip || req.connection.remoteAddress
-                if (!['::1', '127.0.0.1', '::ffff:127.0.0.1'].includes(ip)) {
-                    res.status(403).send('Access denied: Only localhost connections are allowed')
-                    return
-                }
-                next()
-            }],
             routes: [
                 {
                     method: 'post',
@@ -248,7 +238,6 @@ function cleanupDownloadFolders() {
                             const fullPath = download.workdir + '/' + download.targetFile!
                             const stats = fs.statSync(fullPath)
 
-                            download.autoBrowserDownload = false
                             download.status = 'BROWSER-DOWNLOAD'
 
                             res.header('Content-Disposition', 'attachment; filename="' + encodeURIComponent(download.targetFile!) + '"')
@@ -291,8 +280,7 @@ function cleanupDownloadFolders() {
                                 targetFile: download.targetFile,
                                 doneOrCanceledAt: download.doneOrCanceledAt,
                                 onlyAudio: download.onlyAudio,
-                                videoQuality: download.videoQuality,
-                                autoBrowserDownload: download.autoBrowserDownload
+                                videoQuality: download.videoQuality
                             })
                         } catch (error: any) {
                             logger.error('Status request failed:', error)
