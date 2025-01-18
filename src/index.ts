@@ -70,6 +70,13 @@ function cleanupDownloadFolders() {
         api: {
             routes: [
                 {
+                    method: 'get',
+                    path: '/ping',
+                    async handler(req, res) {
+                        res.json({ status: 'ok' })
+                    }
+                },
+                {
                     method: 'post',
                     path: '/start',
                     async handler(req, res) {
